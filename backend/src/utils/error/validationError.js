@@ -9,7 +9,7 @@ class ValidationError extends Error {
       explanation.push(errorDetails.error[key]);
     });
 
-    console.log("aaaaaaaaaaaaaaaaaaaa", explanation);
+    console.log("aaaaaaaaaaaaaaaaaaaaa", explanation);
     this.explanation = explanation;
     this.message = message;
     this.statusCode = StatusCodes.BAD_REQUEST;
