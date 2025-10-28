@@ -1,16 +1,15 @@
 import express from "express";
-import dotenv from "dotenv";
+import { StatusCodes } from "http-status-codes";
+import connectedDb from "./config/dbConfig.js";
+import { PORT } from "./config/serverConfig.js";
 
-dotenv.config();
 const app = express();
-
 app.use(express.json());
-
+app.use(express.urlencoded({ extended: true }));
 app.get("/", (req, res) => {
-  res.send("Server is running ✅");
+  return res.status(StatusCodes.OK).json({ message: " working successfully" });
 });
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`✅ Server startedd on http://localhost:${PORT}`);
+app.listen(PORT, async () => {
+  await connectedDb();
+  console.log(`Server is running on http://localhost:${PORT}`);
 });
