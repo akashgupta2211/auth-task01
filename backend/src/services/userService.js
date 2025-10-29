@@ -54,3 +54,39 @@ export const signInService = async (data) => {
     throw error;
   }
 };
+
+export const getUserDataByAdminRole = async (role) => {
+  try {
+    const users = await userRepository.getUsersByAdminRole(role);
+    return users;
+  } catch (error) {
+    console.error("Error fetching users by role:", error);
+    throw new Error(
+      "An unexpected error occurred while fetching users by role."
+    );
+  }
+};
+
+export const getUserDataByManagerRole = async (role) => {
+  try {
+    const users = await userRepository.getUsersByManagerRole(role);
+    return users;
+  } catch (error) {
+    console.error("Error fetching users by role:", error);
+    throw new Error(
+      "An unexpected error occurred while fetching users by role."
+    );
+  }
+};
+
+export const getUserProfile = async (username) => {
+  try {
+    const users = await userRepository.getUserByUsername(username);
+    return users;
+  } catch (error) {
+    console.error("Error fetching users by  role:", error);
+    throw new Error(
+      "An unexpected error occurred while fetching users by role."
+    );
+  }
+};
