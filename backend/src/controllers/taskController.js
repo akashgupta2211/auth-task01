@@ -1,238 +1,134 @@
 import { StatusCodes } from "http-status-codes";
-import {
-  createTaskService,
-  getAllTasksService,
-  getTaskByIdService,
-  updateTaskService,
-  deleteTaskService,
-  assignTaskService,
-  unassignTaskService,
-  getAssignedTasksService,
-} from "../services/taskService.js";
+import taskService from "../services/taskService.js";
 import {
   customErrorResponse,
   internalErrorResponse,
   successResponse,
 } from "../utils/common/responseObject.js";
 
-// Create a new task
-export const createTask = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const task = await createTaskService(req.body, userId);
+const taskController = {
+  createTask: async (req, res) => {
+    try {
+      const task = await taskService.createTask(req.body, req.user._id);
+      return res
+        .status(StatusCodes.CREATED)
+        .json(successResponse(task, "Task created successfully"));
+    } catch (error) {
+      if (error.statusCode) {
+        return res.status(error.statusCode).json(customErrorResponse(error));
+      }
 
-    return res
-      .status(StatusCodes.CREATED)
-      .json(successResponse(task, "Task created successfully"));
-  } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json(customErrorResponse(error));
+      return res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json(internalErrorResponse(error));
     }
-    return res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json(internalErrorResponse(error));
-  }
-};
+  },
 
-// Get all tasks with filtering and pagination
-export const getAllTasks = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const userRole = req.user.role;
+  getTasks: async (req, res) => {
+    try {
+      const { priority, status, dueDateFrom, dueDateTo } = req.query;
 
-    // Extract query parameters
-    const {
-      status,
-      priority,
-      search,
-      sortBy = "createdAt",
-      sortOrder = "desc",
-      page = 1,
-      limit = 10,
-    } = req.query;
+      const filter = {};
 
-    // Build filters
-    const filters = {};
-    if (status) filters.status = status;
-    if (priority) filters.priority = priority;
-    if (search) {
-      filters.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-      ];
+      if (priority) {
+        filter.priority = priority;
+      }
+
+      if (status) {
+        filter.status = status;
+      }
+
+      if (dueDateFrom || dueDateTo) {
+        filter.dueDate = {};
+        if (dueDateFrom) filter.dueDate.$gte = new Date(dueDateFrom);
+        if (dueDateTo) filter.dueDate.$lte = new Date(dueDateTo);
+      }
+
+      const tasks = await taskService.getTasks(filter);
+      return res
+        .status(StatusCodes.OK)
+        .json(successResponse(tasks, "Tasks fetched successfully"));
+    } catch (error) {
+      if (error.statusCode) {
+        return res.status(error.statusCode).json(customErrorResponse(error));
+      }
+
+      return res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json(internalErrorResponse(error));
     }
+  },
 
-    // Build sort options
-    const sortOptions = {};
-    sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+  updateTask: async (req, res) => {
+    try {
+      const task = await taskService.updateTask(req.params.id, req.body);
+      return res
+        .status(StatusCodes.OK)
+        .json(successResponse(task, "Task updated successfully"));
+    } catch (error) {
+      if (error.statusCode) {
+        return res.status(error.statusCode).json(customErrorResponse(error));
+      }
 
-    const tasks = await getAllTasksService(
-      filters,
-      sortOptions,
-      parseInt(page),
-      parseInt(limit),
-      userRole,
-      userId
-    );
-
-    return res
-      .status(StatusCodes.OK)
-      .json(successResponse(tasks, "Tasks fetched successfully"));
-  } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json(customErrorResponse(error));
+      return res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json(internalErrorResponse(error));
     }
-    return res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json(internalErrorResponse(error));
-  }
-};
+  },
 
-// Get task by ID
-export const getTaskById = async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const userId = req.user.id;
-    const userRole = req.user.role;
+  deleteTask: async (req, res) => {
+    try {
+      await taskService.deleteTask(req.params.id);
+      return res
+        .status(StatusCodes.OK)
+        .json(successResponse(null, "Task deleted successfully"));
+    } catch (error) {
+      if (error.statusCode) {
+        return res.status(error.statusCode).json(customErrorResponse(error));
+      }
 
-    const task = await getTaskByIdService(taskId, userId, userRole);
-
-    return res
-      .status(StatusCodes.OK)
-      .json(successResponse(task, "Task fetched successfully"));
-  } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json(customErrorResponse(error));
+      return res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json(internalErrorResponse(error));
     }
-    return res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json(internalErrorResponse(error));
-  }
-};
+  },
 
-// Update task
-export const updateTask = async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const userId = req.user.id;
-    const userRole = req.user.role;
-
-    const task = await updateTaskService(taskId, req.body, userId, userRole);
-
-    return res
-      .status(StatusCodes.OK)
-      .json(successResponse(task, "Task updated successfully"));
-  } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json(customErrorResponse(error));
-    }
-    return res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json(internalErrorResponse(error));
-  }
-};
-
-// Delete task
-export const deleteTask = async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const userId = req.user.id;
-    const userRole = req.user.role;
-
-    await deleteTaskService(taskId, userId, userRole);
-
-    return res
-      .status(StatusCodes.OK)
-      .json(successResponse(null, "Task deleted successfully"));
-  } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json(customErrorResponse(error));
-    }
-    return res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json(internalErrorResponse(error));
-  }
-};
-
-// Assign task to users
-export const assignTask = async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const { userIds } = req.body;
-    const userId = req.user.id;
-    const userRole = req.user.role;
-
-    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
-      return res.status(StatusCodes.BAD_REQUEST).json(
-        customErrorResponse({
-          message: "Invalid request",
-          explanation: "userIds must be a non-empty array",
-        })
+  assignTask: async (req, res) => {
+    try {
+      const task = await taskService.assignTask(
+        req.params.id,
+        req.body.assignedTo
       );
-    }
+      return res
+        .status(StatusCodes.OK)
+        .json(successResponse(task, "Task assigned successfully"));
+    } catch (error) {
+      if (error.statusCode) {
+        return res.status(error.statusCode).json(customErrorResponse(error));
+      }
 
-    const task = await assignTaskService(taskId, userIds, userId, userRole);
-
-    return res
-      .status(StatusCodes.OK)
-      .json(successResponse(task, "Task assigned successfully"));
-  } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json(customErrorResponse(error));
+      return res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json(internalErrorResponse(error));
     }
-    return res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json(internalErrorResponse(error));
-  }
+  },
+
+  getAssignedTasks: async (req, res) => {
+    try {
+      const tasks = await taskService.getAssignedTasks(req.params.userId);
+      return res
+        .status(StatusCodes.OK)
+        .json(successResponse(tasks, "Assigned tasks fetched successfully"));
+    } catch (error) {
+      if (error.statusCode) {
+        return res.status(error.statusCode).json(customErrorResponse(error));
+      }
+
+      return res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json(internalErrorResponse(error));
+    }
+  },
 };
 
-// Unassign task from users
-export const unassignTask = async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const { userIds } = req.body;
-    const userId = req.user.id;
-    const userRole = req.user.role;
-
-    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
-      return res.status(StatusCodes.BAD_REQUEST).json(
-        customErrorResponse({
-          message: "Invalid request",
-          explanation: "userIds must be a non-empty array",
-        })
-      );
-    }
-
-    const task = await unassignTaskService(taskId, userIds, userId, userRole);
-
-    return res
-      .status(StatusCodes.OK)
-      .json(successResponse(task, "Task unassigned successfully"));
-  } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json(customErrorResponse(error));
-    }
-    return res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json(internalErrorResponse(error));
-  }
-};
-
-// Get assigned tasks for the authenticated user
-export const getAssignedTasks = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const tasks = await getAssignedTasksService(userId);
-
-    return res
-      .status(StatusCodes.OK)
-      .json(successResponse(tasks, "Assigned tasks fetched successfully"));
-  } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json(customErrorResponse(error));
-    }
-    return res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json(internalErrorResponse(error));
-  }
-};
+export default taskController;

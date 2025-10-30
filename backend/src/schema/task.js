@@ -4,21 +4,21 @@ const taskSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: [true, "Task title is required"],
+      required: [true, "Title is required"],
       trim: true,
-      maxlength: [200, "Title cannot exceed 200 characters"],
+      minLength: [3, "Title should be at least 3 characters"],
+      maxLength: [100, "Title should not exceed 100 characters"],
     },
     description: {
       type: String,
-      required: [true, "Task description is required"],
       trim: true,
+      maxLength: [500, "Description should not exceed 500 characters"],
     },
     dueDate: {
       type: Date,
-      required: [true, "Due date is required"],
       validate: {
         validator: function (value) {
-          return value >= new Date();
+          return !value || value >= new Date();
         },
         message: "Due date cannot be in the past",
       },
@@ -26,59 +26,31 @@ const taskSchema = new mongoose.Schema(
     priority: {
       type: String,
       enum: {
-        values: ["low", "medium", "high", "urgent"],
-        message: "Priority must be one of: low, medium, high, urgent",
+        values: ["low", "medium", "high"],
+        message: "Priority must be low, medium, or high",
       },
       default: "medium",
     },
     status: {
       type: String,
       enum: {
-        values: ["pending", "in-progress", "completed", "cancelled"],
-        message:
-          "Status must be one of: pending, in-progress, completed, cancelled",
+        values: ["pending", "in-progress", "completed"],
+        message: "Status must be pending, in-progress, or completed",
       },
       default: "pending",
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: [true, "Task creator is required"],
+      required: [true, "Creator is required"],
     },
-    assignedTo: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
-    tags: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
-    attachments: [
-      {
-        filename: String,
-        url: String,
-        uploadedAt: {
-          type: Date,
-          default: Date.now,
-        },
-      },
-    ],
+    assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Indexes for better query performance
-taskSchema.index({ createdBy: 1, status: 1 });
-taskSchema.index({ assignedTo: 1, status: 1 });
-taskSchema.index({ dueDate: 1 });
-taskSchema.index({ priority: 1 });
-
 const Task = mongoose.model("Task", taskSchema);
-
 export default Task;

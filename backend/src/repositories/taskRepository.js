@@ -1,132 +1,42 @@
 import Task from "../schema/task.js";
-import crudRepository from "./crudRepository.js";
 
 const taskRepository = {
-  ...crudRepository(Task),
-
-  // Create a new task
-  createTask: async (data) => {
-    const newTask = new Task(data);
-    await newTask.save();
-    return await newTask.populate([
-      { path: "createdBy", select: "-password" },
-      { path: "assignedTo", select: "-password" },
-    ]);
+  create: async (data) => {
+    const task = new Task(data);
+    return await task.save();
   },
 
-  // Get all tasks with filters, sorting, and pagination
-  getAllTasks: async (filters = {}, sortOptions = {}, page = 1, limit = 10) => {
-    const skip = (page - 1) * limit;
-
-    const tasks = await Task.find(filters)
-      .populate("createdBy", "-password")
-      .populate("assignedTo", "-password")
-      .sort(sortOptions)
-      .skip(skip)
-      .limit(limit);
-
-    const total = await Task.countDocuments(filters);
-
-    return {
-      tasks,
-      pagination: {
-        total,
-        page,
-        pages: Math.ceil(total / limit),
-        limit,
-      },
-    };
+  findAll: async (filter = {}) => {
+    return await Task.find(filter)
+      .populate("createdBy", "username email avatar")
+      .populate("assignedTo", "username email avatar")
+      .sort({ createdAt: -1 });
   },
 
-  // Get task by ID
-  getTaskById: async (taskId) => {
-    const task = await Task.findById(taskId)
-      .populate("createdBy", "-password")
-      .populate("assignedTo", "-password");
-    return task;
+  findById: async (id) => {
+    return await Task.findById(id)
+      .populate("createdBy", "username email avatar")
+      .populate("assignedTo", "username email avatar");
   },
 
-  // Update task
-  updateTask: async (taskId, updateData) => {
-    const updatedTask = await Task.findByIdAndUpdate(
-      taskId,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    )
-      .populate("createdBy", "-password")
-      .populate("assignedTo", "-password");
-    return updatedTask;
-  },
-
-  // Delete task
-  deleteTask: async (taskId) => {
-    const deletedTask = await Task.findByIdAndDelete(taskId);
-    return deletedTask;
-  },
-
-  // Get tasks by user (created by or assigned to)
-  getTasksByUser: async (userId, filters = {}, sortOptions = {}) => {
-    const tasks = await Task.find({
-      $or: [{ createdBy: userId }, { assignedTo: userId }],
-      ...filters,
+  update: async (id, data) => {
+    return await Task.findByIdAndUpdate(id, data, {
+      new: true,
+      runValidators: true,
     })
-      .populate("createdBy", "-password")
-      .populate("assignedTo", "-password")
-      .sort(sortOptions);
-    return tasks;
+      .populate("createdBy", "username email avatar")
+      .populate("assignedTo", "username email avatar");
   },
 
-  // Get assigned tasks for a user
-  getAssignedTasks: async (userId, filters = {}, sortOptions = {}) => {
-    const tasks = await Task.find({
-      assignedTo: userId,
-      ...filters,
-    })
-      .populate("createdBy", "-password")
-      .populate("assignedTo", "-password")
-      .sort(sortOptions);
-    return tasks;
+  delete: async (id) => {
+    return await Task.findByIdAndDelete(id);
   },
 
-  // Assign task to users
-  assignTaskToUsers: async (taskId, userIds) => {
-    const task = await Task.findByIdAndUpdate(
-      taskId,
-      { $addToSet: { assignedTo: { $each: userIds } } },
-      { new: true, runValidators: true }
-    )
-      .populate("createdBy", "-password")
-      .populate("assignedTo", "-password");
-    return task;
-  },
-
-  // Unassign task from users
-  unassignTaskFromUsers: async (taskId, userIds) => {
-    const task = await Task.findByIdAndUpdate(
-      taskId,
-      { $pull: { assignedTo: { $in: userIds } } },
-      { new: true, runValidators: true }
-    )
-      .populate("createdBy", "-password")
-      .populate("assignedTo", "-password");
-    return task;
-  },
-
-  // Get tasks for manager's team
-  getTasksByTeam: async (managerRole, filters = {}, sortOptions = {}) => {
-    const tasks = await Task.find(filters)
-      .populate({
-        path: "createdBy",
-        select: "-password",
-        match: { role: { $in: ["manager", "admin"] } },
-      })
-      .populate({
-        path: "assignedTo",
-        select: "-password",
-        match: { role: { $in: ["user", "manager"] } },
-      })
-      .sort(sortOptions);
-    return tasks;
+  findByAssignedUser: async (userId) => {
+    return await Task.find({ assignedTo: userId })
+      .populate("createdBy", "username email avatar")
+      .populate("assignedTo", "username email avatar")
+      .sort({ createdAt: -1 });
   },
 };
 
