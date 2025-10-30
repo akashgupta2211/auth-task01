@@ -18,7 +18,7 @@ export const signUp = async (req, res) => {
     const user = await signUpService(req.body);
     return res
       .status(StatusCodes.CREATED)
-      .json(successResponse(user, "User created successfull"));
+      .json(successResponse(user, "User created successfully"));
   } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json(customErrorResponse(error));
@@ -33,14 +33,19 @@ export const signUp = async (req, res) => {
 export const signIn = async (req, res) => {
   try {
     const response = await signInService(req.body);
-    console.log(response, "HIIII");
-    if (response)
-      return res
-        .status(StatusCodes.OK)
-        .json(successResponse(response, "User signin successfully"));
-    else {
-      return res.status(error.statusCode).json(customErrorResponse(error));
+
+    if (!response) {
+      return res.status(StatusCodes.UNAUTHORIZED).json(
+        customErrorResponse({
+          message: "Authentication failed",
+          statusCode: StatusCodes.UNAUTHORIZED,
+        })
+      );
     }
+
+    return res
+      .status(StatusCodes.OK)
+      .json(successResponse(response, "User signed in successfully"));
   } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json(customErrorResponse(error));
@@ -53,18 +58,14 @@ export const signIn = async (req, res) => {
 };
 
 export const fetchUsersByAdminRole = async (req, res) => {
-  const { role } = req.params;
+  const { role } = req.query;
+
   try {
     const users = await getUserDataByAdminRole(role);
-    if (users)
-      return res
-        .status(StatusCodes.OK)
-        .json(successResponse(users, "Data fetched successfully"));
-    else {
-      return res.status(error.statusCode).json(customErrorResponse(error));
-    }
+    return res
+      .status(StatusCodes.OK)
+      .json(successResponse(users, "Data fetched successfully"));
   } catch (error) {
-    console.log(error);
     if (error.statusCode) {
       return res.status(error.statusCode).json(customErrorResponse(error));
     }
@@ -76,20 +77,14 @@ export const fetchUsersByAdminRole = async (req, res) => {
 };
 
 export const fetchUsersByManagerRole = async (req, res) => {
-  const { role } = req.params;
+  const { role } = req.query;
 
-  console.log(role);
   try {
     const users = await getUserDataByManagerRole(role);
-    if (users)
-      return res
-        .status(StatusCodes.OK)
-        .json(successResponse(users, "Data fetched successfully"));
-    else {
-      return res.status(error.statusCode).json(customErrorResponse(error));
-    }
+    return res
+      .status(StatusCodes.OK)
+      .json(successResponse(users, "Data fetched successfully"));
   } catch (error) {
-    console.log(error);
     if (error.statusCode) {
       return res.status(error.statusCode).json(customErrorResponse(error));
     }
@@ -99,20 +94,14 @@ export const fetchUsersByManagerRole = async (req, res) => {
       .json(internalErrorResponse(error));
   }
 };
-
 export const fetchUserProfile = async (req, res) => {
-  const username = req.user.username;
+  const userId = req.user._id;
 
-  console.log(username);
   try {
-    const users = await getUserProfile(username);
-    if (users)
-      return res
-        .status(StatusCodes.OK)
-        .json(successResponse(users, "Data fetched successfully"));
-    else {
-      return res.status(error.statusCode).json(customErrorResponse(error));
-    }
+    const profile = await getUserProfile(userId);
+    return res
+      .status(StatusCodes.OK)
+      .json(successResponse(profile, "Profile fetched successfully"));
   } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json(customErrorResponse(error));

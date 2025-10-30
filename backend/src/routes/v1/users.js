@@ -13,6 +13,7 @@ import {
 import { validate } from "../../validators/zodValidators.js";
 import { isAuthenticated } from "../../middlewares/authMiddleware.js";
 import { authorizeRoles } from "../../middlewares/roleMiddleware.js";
+import { checkManagerRoleAccess } from "../../middlewares/authorizeUserRole.js";
 
 const router = express.Router();
 
@@ -30,6 +31,7 @@ router.get(
   "/manager",
   isAuthenticated,
   authorizeRoles("admin", "manager"),
+  checkManagerRoleAccess,
   fetchUsersByManagerRole
 );
 
@@ -41,6 +43,7 @@ router.get(
 );
 
 router.get("/", (req, res) => {
-  return res.status(200).json("  for testing ");
+  return res.status(200).json("for testing");
 });
+
 export default router;

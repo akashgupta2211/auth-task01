@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { createJwt } from "../utils/common/authUtils.js";
 import validationError from "../utils/error/validationError.js";
 
+import taskRepository from "../repositories/taskRepository.js";
 export const signUpService = async (data) => {
   try {
     const newUser = await userRepository.signUpUser(data);
@@ -28,16 +29,16 @@ export const signInService = async (data) => {
     const user = await userRepository.getByEmail(data.email);
     if (!user) {
       throw new clientError({
-        message: "Invalid email",
-        explanation: "Invalid email sent from the client side",
+        message: "Invalid email or password",
+        explanation: "Invalid credentials sent from the client side",
         statusCode: StatusCodes.NOT_FOUND,
       });
     }
     const match = bcrypt.compareSync(data.password, user.password);
     if (!match) {
       throw new clientError({
-        message: "Invalid email",
-        explanation: "Invalid email sent from the client side",
+        message: "Invalid email or password",
+        explanation: "Invalid credentials sent from the client side",
         statusCode: StatusCodes.BAD_REQUEST,
       });
     }
@@ -48,7 +49,12 @@ export const signInService = async (data) => {
       email: user.email,
       _id: user._id,
       role: user.role,
-      token: createJwt({ id: user._id, email: user.email, role: user.role }),
+      token: createJwt({
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        username: user.username,
+      }),
     };
   } catch (error) {
     throw error;
@@ -61,9 +67,11 @@ export const getUserDataByAdminRole = async (role) => {
     return users;
   } catch (error) {
     console.error("Error fetching users by role:", error);
-    throw new Error(
-      "An unexpected error occurred while fetching users by role."
-    );
+    throw new clientError({
+      message: "Failed to fetch users",
+      explanation: "An error occurred while fetching users",
+      statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+    });
   }
 };
 
@@ -73,20 +81,47 @@ export const getUserDataByManagerRole = async (role) => {
     return users;
   } catch (error) {
     console.error("Error fetching users by role:", error);
-    throw new Error(
-      "An unexpected error occurred while fetching users by role."
-    );
+    throw new clientError({
+      message: "Failed to fetch users",
+      explanation: "An error occurred while fetching users",
+      statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+    });
   }
 };
-
-export const getUserProfile = async (username) => {
+export const getUserProfile = async (userId) => {
   try {
-    const users = await userRepository.getUserByUsername(username);
-    return users;
+    const user = await userRepository.getById(userId);
+    if (!user) {
+      throw new clientError({
+        message: "User not found",
+        explanation: "No user exists with the provided ID",
+        statusCode: StatusCodes.NOT_FOUND,
+      });
+    }
+
+    const assignedTasks = await taskRepository.findByAssignedUser(user._id);
+
+    return {
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+      },
+      assignedTasks: assignedTasks,
+      taskStatus: {
+        total: assignedTasks.length,
+        pending: assignedTasks.filter((task) => task.status === "pending")
+          .length,
+        inProgress: assignedTasks.filter(
+          (task) => task.status === "in-progress"
+        ).length,
+        completed: assignedTasks.filter((task) => task.status === "completed")
+          .length,
+      },
+    };
   } catch (error) {
-    console.error("Error fetching users by  role:", error);
-    throw new Error(
-      "An unexpected error occurred while fetching users by role."
-    );
+    throw error;
   }
 };
