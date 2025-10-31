@@ -4,9 +4,20 @@ import connectedDb from "./config/dbConfig.js";
 import { PORT } from "./config/serverConfig.js";
 import apiRouter from "./routes/apiRoutes.js";
 import rateLimit from "express-rate-limit";
+import YAML from "yamljs";
+import { swaggerUi, swaggerSpec } from "./config/swagger.js";
 
 const app = express();
+
 app.use(express.json());
+
+const swaggerDocument = YAML.load("./openapi.yaml");
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+app.get("/api-docs.json", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swaggerSpec);
+});
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,

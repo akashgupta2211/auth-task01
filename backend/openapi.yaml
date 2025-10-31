@@ -1,0 +1,881 @@
+openapi: 3.0.0
+info:
+  title: Task Management API
+  version: 1.0.0
+  description: |
+    # Task Management API Documentation
+    
+    Complete REST API for task management system with role-based access control.
+    
+    ## Features
+    - User authentication with JWT tokens
+    - Role-based authorization (Admin, Manager, User)
+    - Complete CRUD operations for tasks
+    - Task assignment and tracking
+    - Secure endpoints with bearer token authentication
+    
+    ## Authentication
+    Most endpoints require authentication. Use the `/users/signin` endpoint to get a JWT token,
+    then click the 'Authorize' button and enter: `Bearer YOUR_TOKEN`
+    
+    ## Roles & Permissions
+    - **Admin**: Full access to all endpoints
+    - **Manager**: Can create tasks, assign tasks, view assigned users
+    - **User**: Can view their assigned tasks and profile
+    
+ 
+
+servers:
+  - url: http://localhost:5000/api/v1
+    description: Local Development Server
+  - url: https://your-app.onrender.com/api/v1
+    description: Production Server (Render)
+  
+
+tags:
+  - username: Authentication
+    description: |
+      User registration and login endpoints.
+      No authentication required for these endpoints.
+  - username: Users
+    description: |
+      User management operations.
+      Requires authentication and appropriate role permissions.
+  - username: Tasks
+    description: |
+      Task CRUD operations, assignment, and tracking.
+      Requires authentication with role-based access.
+  - username: Health
+    description: API health check and testing endpoints
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Enter your JWT token in the format: `Bearer <token>`
+        
+        To get a token:
+        1. Register using POST /users/signup
+        2. Login using POST /users/signin
+        3. Copy the token from response
+        4. Click 'Authorize' and paste: Bearer YOUR_TOKEN
+
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - username
+        - role
+      properties:
+        id:
+          type: string
+          description: Unique user identifier (MongoDB ObjectId)
+          example: "507f1f77bcf86cd799439011"
+        email:
+          type: string
+          format: email
+          description: User's email address (must be unique)
+          example: "john.doe@example.com"
+        username:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: User'username 
+          example: "John Doe"
+        role:
+          type: string
+          enum: [admin, manager, user]
+          description: |
+            User role for authorization:
+            - admin: Full system access
+            - manager: Can manage tasks and users
+            - user: Can view assigned tasks
+          example: "user"
+        createdAt:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+          example: "2025-10-31T10:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last profile update timestamp
+          example: "2025-10-31T10:00:00Z"
+
+    UserSignup:
+      type: object
+      required:
+        - email
+        - password
+        - username
+        - role
+      properties:
+        email:
+          type: string
+          format: email
+          example: "newuser@example.com"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: Password must be at least 8 characters
+          example: "SecurePass123!"
+        username:
+          type: string
+          minLength: 2
+          example: "John Doe"
+        role:
+          type: string
+          enum: [admin, manager, user]
+          example: "user"
+
+    UserSignin:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          example: "SecurePass123!"
+
+    Task:
+      type: object
+      required:
+        - id
+        - title
+        - status
+      properties:
+        id:
+          type: string
+          description: Unique task identifier (MongoDB ObjectId)
+          example: "507f1f77bcf86cd799439012"
+        title:
+          type: string
+          minLength: 3
+          maxLength: 200
+          description: Task title/summary
+          example: "Complete project documentation"
+        description:
+          type: string
+          maxLength: 2000
+          description: Detailed task description
+          example: "Write comprehensive API documentation with examples"
+        status:
+          type: string
+          enum: [pending, in-progress, completed]
+          description: Current task status
+          example: "pending"
+        priority:
+          type: string
+          enum: [low, medium, high]
+          description: Task priority level
+          example: "high"
+        assignedTo:
+          type: string
+          description: User ID of assigned person (null if unassigned)
+          nullable: true
+          example: "507f1f77bcf86cd799439011"
+        createdBy:
+          type: string
+          description: User ID of task creator
+          example: "507f1f77bcf86cd799439013"
+        dueDate:
+          type: string
+          format: date-time
+          description: Task deadline
+          nullable: true
+          example: "2025-11-15T10:00:00Z"
+        createdAt:
+          type: string
+          format: date-time
+          description: Task creation timestamp
+          example: "2025-10-31T10:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2025-10-31T12:30:00Z"
+
+    TaskCreate:
+      type: object
+      required:
+        - title
+        - description
+      properties:
+        title:
+          type: string
+          minLength: 3
+          example: "Complete project documentation"
+        description:
+          type: string
+          example: "Write comprehensive documentation for the API"
+        status:
+          type: string
+          enum: [pending, in-progress, completed]
+          default: pending
+          example: "pending"
+        priority:
+          type: string
+          enum: [low, medium, high]
+          default: medium
+          example: "high"
+        dueDate:
+          type: string
+          format: date-time
+          example: "2025-11-15T10:00:00Z"
+
+    TaskUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          example: "Updated task title"
+        description:
+          type: string
+          example: "Updated task description"
+        status:
+          type: string
+          enum: [pending, in-progress, completed]
+          example: "in-progress"
+        priority:
+          type: string
+          enum: [low, medium, high]
+          example: "medium"
+        dueDate:
+          type: string
+          format: date-time
+          example: "2025-11-20T10:00:00Z"
+
+    TaskAssign:
+      type: object
+      required:
+        - assignedTo
+      properties:
+        assignedTo:
+          type: string
+          description: User ID to assign the task to
+          example: "507f1f77bcf86cd799439011"
+
+    Error:
+      type: object
+      required:
+        - message
+        - status
+      properties:
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Invalid credentials"
+        status:
+          type: integer
+          description: HTTP status code
+          example: 400
+        error:
+          type: string
+          description: Error type/code
+          example: "ValidationError"
+        details:
+          type: array
+          description: Additional error details (for validation errors)
+          items:
+            type: string
+          example: ["Email is required", "Password must be at least 8 characters"]
+
+    Success:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Operation completed successfully"
+        data:
+          type: object
+          description: Response data
+
+  responses:
+    UnauthorizedError:
+      description: Authentication token is missing or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: "Unauthorized access. Please login."
+            status: 401
+            error: "UnauthorizedError"
+
+    ForbiddenError:
+      description: User does not have required permissions for this operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: "You do not have permission to access this resource"
+            status: 403
+            error: "ForbiddenError"
+
+    NotFoundError:
+      description: Requested resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: "Resource not found"
+            status: 404
+            error: "NotFoundError"
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: "Validation failed"
+            status: 400
+            error: "ValidationError"
+            details: ["Email is required", "Password must be at least 8 characters"]
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ============================================
+  # AUTHENTICATION ENDPOINTS
+  # ============================================
+  /users/signup:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: |
+        Create a new user account. No authentication required.
+        
+        **Validation Rules:**
+        - Email must be valid and unique
+        - Password must be at least 8 characters
+        - username must be at least 2 characters
+        - Role must be one of: admin, manager, user
+      operationId: signup
+      security: []
+      requestBody:
+        required: true
+        description: User registration details
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSignup'
+            examples:
+              admin:
+                summary: Register as Admin
+                value:
+                  email: "admin@example.com"
+                  password: "AdminPass123!"
+                  username: "Admin User"
+                  role: "admin"
+              manager:
+                summary: Register as Manager
+                value:
+                  email: "manager@example.com"
+                  password: "ManagerPass123!"
+                  username: "Manager User"
+                  role: "manager"
+              user:
+                summary: Register as Regular User
+                value:
+                  email: "user@example.com"
+                  password: "UserPass123!"
+                  username: "Regular User"
+                  role: "user"
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User registered successfully"
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+                    description: JWT authentication token
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Email already registered"
+                status: 409
+                error: "ConflictError"
+
+  /users/signin:
+    post:
+      tags:
+        - Authentication
+      summary: Sign in user
+      description: |
+        Authenticate user and receive JWT token.
+        Use the token for subsequent API calls.
+      operationId: signin
+      security: []
+      requestBody:
+        required: true
+        description: Login credentials
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSignin'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Login successful"
+                  token:
+                    type: string
+                    description: JWT token for authentication
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Invalid email or password"
+                status: 401
+                error: "AuthenticationError"
+
+  # ============================================
+  # USER MANAGEMENT ENDPOINTS
+  # ============================================
+  /users/admin:
+    get:
+      tags:
+        - Users
+      summary: Get all users (Admin only)
+      description: |
+        Retrieve list of all users in the system.
+        
+        **Required Role:** Admin
+      operationId: getAllUsers
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of all users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  total:
+                    type: integer
+                    example: 25
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /users/manager:
+    get:
+      tags:
+        - Users
+      summary: Get managed users
+      description: |
+        Get users managed by the current manager.
+        
+        **Admin:** Can see all users
+        **Manager:** Can see only their assigned users
+        
+        **Required Role:** Admin or Manager
+      operationId: getManagedUsers
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  total:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /users/profile:
+    get:
+      tags:
+        - Users
+      summary: Get current user profile
+      description: |
+        Retrieve profile information of the currently authenticated user.
+        
+        **Required:** Valid JWT token
+      operationId: getProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /users/:
+    get:
+      tags:
+        - Health
+      summary: Test endpoint
+      description: Simple test endpoint to verify API is running
+      operationId: testEndpoint
+      security: []
+      responses:
+        '200':
+          description: Test response
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "for testing"
+
+  # ============================================
+  # TASK MANAGEMENT ENDPOINTS
+  # ============================================
+  /tasks:
+    get:
+      tags:
+        - Tasks
+      summary: Get all tasks
+      description: |
+        Retrieve list of tasks with optional filters.
+        
+        **Access:**
+        - Admin: All tasks
+        - Manager: Tasks they created or assigned
+        - User: Only their assigned tasks
+        
+        **Required Role:** Any authenticated user
+      operationId: getTasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - username: status
+          in: query
+          description: Filter by task status
+          required: false
+          schema:
+            type: string
+            enum: [pending, in-progress, completed]
+          example: "pending"
+        - username: priority
+          in: query
+          description: Filter by task priority
+          required: false
+          schema:
+            type: string
+            enum: [low, medium, high]
+          example: "high"
+        - username: assignedTo
+          in: query
+          description: Filter by assigned user ID
+          required: false
+          schema:
+            type: string
+          example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  total:
+                    type: integer
+                    example: 25
+                  filters:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                      priority:
+                        type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Tasks
+      summary: Create a new task
+      description: |
+        Create a new task in the system.
+        
+        **Required Role:** Admin or Manager
+      operationId: createTask
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        description: Task details
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Task created successfully"
+                  task:
+                    $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /tasks/{id}:
+    put:
+      tags:
+        - Tasks
+      summary: Update a task
+      description: |
+        Update an existing task.
+        
+        **Required Role:** Admin or Manager
+      operationId: updateTask
+      security:
+        - bearerAuth: []
+      parameters:
+        - username: id
+          in: path
+          required: true
+          description: Task ID to update
+          schema:
+            type: string
+          example: "507f1f77bcf86cd799439012"
+      requestBody:
+        required: true
+        description: Updated task details
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdate'
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Task updated successfully"
+                  task:
+                    $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Tasks
+      summary: Delete a task
+      description: |
+        Permanently delete a task from the system.
+        
+        **Required Role:** Admin or Manager
+        **Warning:** This action cannot be undone
+      operationId: deleteTask
+      security:
+        - bearerAuth: []
+      parameters:
+        - username: id
+          in: path
+          required: true
+          description: Task ID to delete
+          schema:
+            type: string
+          example: "507f1f77bcf86cd799439012"
+      responses:
+        '200':
+          description: Task deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Task deleted successfully"
+                  deletedId:
+                    type: string
+                    example: "507f1f77bcf86cd799439012"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /tasks/{id}/assign:
+    post:
+      tags:
+        - Tasks
+      summary: Assign task to user
+      description: |
+        Assign a task to a specific user.
+        
+        **Required Role:** Manager
+        **Note:** Managers can only assign to users under their management
+      operationId: assignTask
+      security:
+        - bearerAuth: []
+      parameters:
+        - username: id
+          in: path
+          required: true
+          description: Task ID to assign
+          schema:
+            type: string
+          example: "507f1f77bcf86cd799439012"
+      requestBody:
+        required: true
+        description: User assignment details
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskAssign'
+      responses:
+        '200':
+          description: Task assigned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Task assigned successfully"
+                  task:
+                    $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /tasks/assigned/{userId}:
+    get:
+      tags:
+        - Tasks
+      summary: Get tasks assigned to a specific user
+      description: |
+        Retrieve all tasks assigned to a specific user.
+        
+        **Access:**
+        - Admin: Can view any user's tasks
+        - Manager: Can view tasks of their managed users
+        - User: Can only view their own tasks
+      operationId: getAssignedTasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - username: userId
+          in: path
+          required: true
+          description: User ID to get assigned tasks for
+          schema:
+            type: string
+          example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: List of assigned tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  total:
+                    type: integer
+                    example: 10
+                  userId:
+                    type: string
+                    example: "507f1f77bcf86cd799439011"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
