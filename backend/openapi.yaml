@@ -22,30 +22,27 @@ info:
     - **Admin**: Full access to all endpoints
     - **Manager**: Can create tasks, assign tasks, view assigned users
     - **User**: Can view their assigned tasks and profile
-    
- 
 
 servers:
   - url: http://localhost:5000/api/v1
     description: Local Development Server
   - url: https://your-app.onrender.com/api/v1
     description: Production Server (Render)
-  
 
 tags:
-  - username: Authentication
+  - name: Authentication
     description: |
       User registration and login endpoints.
       No authentication required for these endpoints.
-  - username: Users
+  - name: Users
     description: |
       User management operations.
       Requires authentication and appropriate role permissions.
-  - username: Tasks
+  - name: Tasks
     description: |
       Task CRUD operations, assignment, and tracking.
       Requires authentication with role-based access.
-  - username: Health
+  - name: Health
     description: API health check and testing endpoints
 
 components:
@@ -85,7 +82,7 @@ components:
           type: string
           minLength: 2
           maxLength: 100
-          description: User'username 
+          description: User's username 
           example: "John Doe"
         role:
           type: string
@@ -271,13 +268,13 @@ components:
       type: object
       required:
         - message
-        - status
+        - statusCode
       properties:
         message:
           type: string
           description: Human-readable error message
           example: "Invalid credentials"
-        status:
+        statusCode:
           type: integer
           description: HTTP status code
           example: 400
@@ -286,15 +283,17 @@ components:
           description: Error type/code
           example: "ValidationError"
         details:
-          type: array
+          type: object
           description: Additional error details (for validation errors)
-          items:
-            type: string
-          example: ["Email is required", "Password must be at least 8 characters"]
+          example: 
+            required: ["email", "password"]
 
     Success:
       type: object
       properties:
+        success:
+          type: boolean
+          example: true
         message:
           type: string
           example: "Operation completed successfully"
@@ -309,10 +308,17 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-          example:
-            message: "Unauthorized access. Please login."
-            status: 401
-            error: "UnauthorizedError"
+          examples:
+            missingToken:
+              summary: Missing authentication token
+              value:
+                message: "User not authenticated"
+                statusCode: 401
+            invalidToken:
+              summary: Invalid or expired token
+              value:
+                message: "Unauthorized access. Please login."
+                statusCode: 401
 
     ForbiddenError:
       description: User does not have required permissions for this operation
@@ -320,10 +326,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-          example:
-            message: "You do not have permission to access this resource"
-            status: 403
-            error: "ForbiddenError"
+          examples:
+            insufficientPermissions:
+              summary: Insufficient permissions
+              value:
+                message: "You do not have permission to access this resource"
+                statusCode: 403
 
     NotFoundError:
       description: Requested resource was not found
@@ -331,10 +339,22 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-          example:
-            message: "Resource not found"
-            status: 404
-            error: "NotFoundError"
+          examples:
+            userNotFound:
+              summary: User not found
+              value:
+                message: "User profile not found"
+                statusCode: 404
+            taskNotFound:
+              summary: Task not found
+              value:
+                message: "Task not found"
+                statusCode: 404
+            noUsers:
+              summary: No users found
+              value:
+                message: "No users found"
+                statusCode: 404
 
     ValidationError:
       description: Request validation failed
@@ -342,11 +362,24 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-          example:
-            message: "Validation failed"
-            status: 400
-            error: "ValidationError"
-            details: ["Email is required", "Password must be at least 8 characters"]
+          examples:
+            missingFields:
+              summary: Missing required fields
+              value:
+                message: "Missing required fields"
+                statusCode: 400
+                details:
+                  required: ["email", "password", "username", "role"]
+            invalidRole:
+              summary: Invalid role value
+              value:
+                message: "Invalid role. Must be one of: admin, manager, user"
+                statusCode: 400
+            invalidId:
+              summary: Invalid ID format
+              value:
+                message: "Invalid ID format"
+                statusCode: 400
 
 security:
   - bearerAuth: []
@@ -407,27 +440,61 @@ paths:
               schema:
                 type: object
                 properties:
+                  success:
+                    type: boolean
+                    example: true
                   message:
                     type: string
-                    example: "User registered successfully"
-                  user:
-                    $ref: '#/components/schemas/User'
-                  token:
-                    type: string
-                    description: JWT authentication token
-                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    example: "User created successfully"
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      token:
+                        type: string
+                        description: JWT authentication token
+                        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: Validation failed or bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missingFields:
+                  summary: Missing required fields
+                  value:
+                    message: "Missing required fields"
+                    statusCode: 400
+                    details:
+                      required: ["email", "password", "username", "role"]
+                registrationFailed:
+                  summary: Registration failed
+                  value:
+                    message: "User registration failed"
+                    statusCode: 400
         '409':
           description: Email already exists
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              examples:
+                duplicateEmail:
+                  summary: Email already registered
+                  value:
+                    message: "Resource already exists"
+                    statusCode: 409
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
               example:
-                message: "Email already registered"
-                status: 409
-                error: "ConflictError"
+                message: "Internal server error"
+                statusCode: 500
 
   /users/signin:
     post:
@@ -454,15 +521,30 @@ paths:
               schema:
                 type: object
                 properties:
+                  success:
+                    type: boolean
+                    example: true
                   message:
                     type: string
-                    example: "Login successful"
-                  token:
-                    type: string
-                    description: JWT token for authentication
-                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  user:
-                    $ref: '#/components/schemas/User'
+                    example: "User signed in successfully"
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                        description: JWT token for authentication
+                        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      user:
+                        $ref: '#/components/schemas/User'
+        '400':
+          description: Missing credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Email and password are required"
+                statusCode: 400
         '401':
           description: Invalid credentials
           content:
@@ -471,8 +553,16 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 message: "Invalid email or password"
-                status: 401
-                error: "AuthenticationError"
+                statusCode: 401
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+                statusCode: 500
 
   # ============================================
   # USER MANAGEMENT ENDPOINTS
@@ -489,6 +579,15 @@ paths:
       operationId: getAllUsers
       security:
         - bearerAuth: []
+      parameters:
+        - name: role
+          in: query
+          description: Filter by user role
+          required: false
+          schema:
+            type: string
+            enum: [admin, manager, user]
+          example: "user"
       responses:
         '200':
           description: List of all users
@@ -497,17 +596,44 @@ paths:
               schema:
                 type: object
                 properties:
-                  users:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/User'
-                  total:
-                    type: integer
-                    example: 25
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Data fetched successfully"
+                  data:
+                    type: object
+                    properties:
+                      users:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+                      total:
+                        type: integer
+                        example: 25
+        '400':
+          description: Invalid role parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Invalid role. Must be one of: admin, manager, user"
+                statusCode: 400
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: No users found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "No users found"
+                statusCode: 404
 
   /users/manager:
     get:
@@ -524,6 +650,15 @@ paths:
       operationId: getManagedUsers
       security:
         - bearerAuth: []
+      parameters:
+        - name: role
+          in: query
+          description: Filter by user role
+          required: false
+          schema:
+            type: string
+            enum: [admin, manager, user]
+          example: "user"
       responses:
         '200':
           description: List of users
@@ -532,16 +667,43 @@ paths:
               schema:
                 type: object
                 properties:
-                  users:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/User'
-                  total:
-                    type: integer
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Data fetched successfully"
+                  data:
+                    type: object
+                    properties:
+                      users:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+                      total:
+                        type: integer
+        '400':
+          description: Invalid role parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Invalid role. Must be one of: admin, manager, user"
+                statusCode: 400
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: No users found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "No users found"
+                statusCode: 404
 
   /users/profile:
     get:
@@ -563,10 +725,43 @@ paths:
               schema:
                 type: object
                 properties:
-                  user:
-                    $ref: '#/components/schemas/User'
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Profile fetched successfully"
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
         '401':
-          $ref: '#/components/responses/UnauthorizedError'
+          description: User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                notAuthenticated:
+                  summary: User not authenticated
+                  value:
+                    message: "User not authenticated"
+                    statusCode: 401
+                unauthorized:
+                  summary: Unauthorized access
+                  value:
+                    message: "Unauthorized access. Please login."
+                    statusCode: 401
+        '404':
+          description: User profile not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "User profile not found"
+                statusCode: 404
 
   /users/:
     get:
@@ -606,7 +801,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - username: status
+        - name: status
           in: query
           description: Filter by task status
           required: false
@@ -614,7 +809,7 @@ paths:
             type: string
             enum: [pending, in-progress, completed]
           example: "pending"
-        - username: priority
+        - name: priority
           in: query
           description: Filter by task priority
           required: false
@@ -622,7 +817,7 @@ paths:
             type: string
             enum: [low, medium, high]
           example: "high"
-        - username: assignedTo
+        - name: assignedTo
           in: query
           description: Filter by assigned user ID
           required: false
@@ -637,20 +832,29 @@ paths:
               schema:
                 type: object
                 properties:
-                  tasks:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Task'
-                  total:
-                    type: integer
-                    example: 25
-                  filters:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Tasks fetched successfully"
+                  data:
                     type: object
                     properties:
-                      status:
-                        type: string
-                      priority:
-                        type: string
+                      tasks:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Task'
+                      total:
+                        type: integer
+                        example: 25
+                      filters:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                          priority:
+                            type: string
         '401':
           $ref: '#/components/responses/UnauthorizedError'
 
@@ -680,11 +884,17 @@ paths:
               schema:
                 type: object
                 properties:
+                  success:
+                    type: boolean
+                    example: true
                   message:
                     type: string
                     example: "Task created successfully"
-                  task:
-                    $ref: '#/components/schemas/Task'
+                  data:
+                    type: object
+                    properties:
+                      task:
+                        $ref: '#/components/schemas/Task'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -705,7 +915,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - username: id
+        - name: id
           in: path
           required: true
           description: Task ID to update
@@ -727,13 +937,31 @@ paths:
               schema:
                 type: object
                 properties:
+                  success:
+                    type: boolean
+                    example: true
                   message:
                     type: string
                     example: "Task updated successfully"
-                  task:
-                    $ref: '#/components/schemas/Task'
+                  data:
+                    type: object
+                    properties:
+                      task:
+                        $ref: '#/components/schemas/Task'
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: Invalid ID or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidId:
+                  summary: Invalid task ID
+                  value:
+                    message: "Invalid ID format"
+                    statusCode: 400
+                validation:
+                  $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -754,7 +982,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - username: id
+        - name: id
           in: path
           required: true
           description: Task ID to delete
@@ -769,12 +997,27 @@ paths:
               schema:
                 type: object
                 properties:
+                  success:
+                    type: boolean
+                    example: true
                   message:
                     type: string
                     example: "Task deleted successfully"
-                  deletedId:
-                    type: string
-                    example: "507f1f77bcf86cd799439012"
+                  data:
+                    type: object
+                    properties:
+                      deletedId:
+                        type: string
+                        example: "507f1f77bcf86cd799439012"
+        '400':
+          description: Invalid task ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Invalid ID format"
+                statusCode: 400
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -796,7 +1039,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - username: id
+        - name: id
           in: path
           required: true
           description: Task ID to assign
@@ -818,13 +1061,31 @@ paths:
               schema:
                 type: object
                 properties:
+                  success:
+                    type: boolean
+                    example: true
                   message:
                     type: string
                     example: "Task assigned successfully"
-                  task:
-                    $ref: '#/components/schemas/Task'
+                  data:
+                    type: object
+                    properties:
+                      task:
+                        $ref: '#/components/schemas/Task'
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: Invalid ID or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidId:
+                  summary: Invalid task ID
+                  value:
+                    message: "Invalid ID format"
+                    statusCode: 400
+                validation:
+                  $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -848,7 +1109,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - username: userId
+        - name: userId
           in: path
           required: true
           description: User ID to get assigned tasks for
@@ -863,16 +1124,34 @@ paths:
               schema:
                 type: object
                 properties:
-                  tasks:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Task'
-                  total:
-                    type: integer
-                    example: 10
-                  userId:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
                     type: string
-                    example: "507f1f77bcf86cd799439011"
+                    example: "Assigned tasks fetched successfully"
+                  data:
+                    type: object
+                    properties:
+                      tasks:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Task'
+                      total:
+                        type: integer
+                        example: 10
+                      userId:
+                        type: string
+                        example: "507f1f77bcf86cd799439011"
+        '400':
+          description: Invalid user ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Invalid ID format"
+                statusCode: 400
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
