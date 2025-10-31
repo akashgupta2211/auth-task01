@@ -56,7 +56,7 @@ const taskService = {
       if (!task) {
         throw new clientError({
           message: "Task not found",
-          explanation: "No task exists with the provided ID",
+          explanation: "No task exists witha the provided ID",
           statusCode: StatusCodes.NOT_FOUND,
         });
       }
