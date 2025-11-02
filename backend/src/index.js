@@ -19,6 +19,16 @@ app.get("/api-docs.json", (req, res) => {
   res.send(swaggerSpec);
 });
 
+import cors from "cors";
+
+app.use(
+  cors({
+    origin: ["http://localhost:5000", "https://auth-task02.onrender.com", "*"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
