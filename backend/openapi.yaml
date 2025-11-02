@@ -24,10 +24,10 @@ info:
     - **User**: Can view their assigned tasks and profile
 
 servers:
+  - url: https://auth-task02.onrender.com/api/v1
+    description: Production Server (Render)
   - url: http://localhost:5000/api/v1
     description: Local Development Server
-  - url: https://your-app.onrender.com/api/v1
-    description: Production Server (Render)
 
 tags:
   - name: Authentication
@@ -554,6 +554,73 @@ paths:
               example:
                 message: "Invalid email or password"
                 statusCode: 401
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+                statusCode: 500
+
+  /users/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout user
+      description: |
+        Logout the currently authenticated user and invalidate their token.
+        
+        **Note:** After logout, the token will no longer be valid and the user 
+        must login again to access protected endpoints.
+        
+        **Required:** Valid JWT token
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "User logged out successfully"
+                  data:
+                    type: object
+                    properties:
+                      userId:
+                        type: string
+                        example: "507f1f77bcf86cd799439011"
+        '401':
+          description: User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                notAuthenticated:
+                  summary: User not authenticated
+                  value:
+                    message: "User not authenticated"
+                    statusCode: 401
+                missingToken:
+                  summary: Missing authentication token
+                  value:
+                    message: "Authentication token is missing"
+                    statusCode: 401
+                invalidToken:
+                  summary: Invalid or expired token
+                  value:
+                    message: "Invalid authentication token"
+                    statusCode: 401
         '500':
           description: Internal server error
           content:
