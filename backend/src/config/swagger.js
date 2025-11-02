@@ -21,7 +21,7 @@ const options = {
         description: "Development server",
       },
       {
-        url: "https://api.taskmanagement.com/api/v1",
+        url: "https://auth-task02.onrender.com/api/v1",
         description: "Production server",
       },
     ],
@@ -174,7 +174,7 @@ const options = {
       },
     ],
   },
-  apis: ["./routes/v1/*.js"],
+  apis: ["./src/routes/v1/*.js"],
 };
 
 const swaggerSpec = swaggerJsdoc(options);
